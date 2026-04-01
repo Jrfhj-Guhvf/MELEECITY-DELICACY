@@ -253,6 +253,8 @@ hook.Add("Think", "ZCityMenuMusicRoundSync", function()
     end
 end)
 
+local disabledintro = ConVarExists("hg_disableintro") and GetConVar("hg_disableintro") or CreateClientConVar("hg_disableintro", "0", true, false, "Disables the intro when you first Join.", 0, 1)
+
 function PANEL:Init()
     self:SetAlpha( 0 )
     self:SetSize( ScrW(), ScrH() )
@@ -265,7 +267,7 @@ function PANEL:Init()
     self:ShowCloseButton( false )
     
     -- Check for Intro Mode
-    if not ZCityHasSeenIntro then
+    if not ZCityHasSeenIntro and not disabledintro:GetBool() then
         self.IsIntro = true
     end
     
@@ -2707,7 +2709,7 @@ end)
 hook.Add("InitPostEntity", "ZCityOpenIntroMenu", function()
     -- Use a timer to ensure everything is fully loaded before opening
     timer.Simple(1, function()
-        if not ZCityHasSeenIntro then
+        if not ZCityHasSeenIntro and not disabledintro:GetBool() then	--for "skibiditimmytuff"
             -- Open the menu automatically on join
             if MainMenu and IsValid(MainMenu) then MainMenu:Remove() end
             MainMenu = vgui.Create("ZMainMenu")
@@ -2721,7 +2723,7 @@ end)
 
 -- Force open on file refresh for testing (if not seen intro)
 timer.Simple(0.1, function()
-    if not ZCityHasSeenIntro and (not MainMenu or not IsValid(MainMenu)) then
+    if not ZCityHasSeenIntro and (not MainMenu or not IsValid(MainMenu)) and not disabledintro:GetBool() then
         MainMenu = vgui.Create("ZMainMenu")
         MainMenu:MakePopup()
         MainMenu.IsIntro = true
@@ -2752,7 +2754,7 @@ end)
 hook.Add("InitPostEntity", "ZCityOpenIntroMenu", function()
     -- Use a timer to ensure everything is fully loaded before opening
     timer.Simple(1, function()
-        if not ZCityHasSeenIntro then
+        if not ZCityHasSeenIntro and not disabledintro:GetBool() then	--HOW MANY ARE THERE??
             -- Open the menu automatically on join
             if MainMenu and IsValid(MainMenu) then MainMenu:Remove() end
             MainMenu = vgui.Create("ZMainMenu")
@@ -2766,7 +2768,7 @@ end)
 
 -- Force open on file refresh for testing (if not seen intro)
 timer.Simple(0.1, function()
-    if not ZCityHasSeenIntro and (not MainMenu or not IsValid(MainMenu)) then
+    if not ZCityHasSeenIntro and (not MainMenu or not IsValid(MainMenu)) and not disabledintro:GetBool() then
         MainMenu = vgui.Create("ZMainMenu")
         MainMenu:MakePopup()
         MainMenu.IsIntro = true
