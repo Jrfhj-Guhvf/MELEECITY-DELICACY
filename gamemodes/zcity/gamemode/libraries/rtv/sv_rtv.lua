@@ -347,6 +347,13 @@ local function getMapWeight(map)
     return 1 - (pop / 100) 
 end
 
+local function ShuffleArray(tbl)
+    for i = #tbl, 2, -1 do
+        local j = math.random(i)
+        tbl[i], tbl[j] = tbl[j], tbl[i]
+    end
+end
+
 function zb.StartRTV(time)
     if zb.votestarted then return end
     
@@ -385,12 +392,10 @@ function zb.StartRTV(time)
             end
         end
 
+        ShuffleArray(possible)
         selectedPrefixes = {}
-        table.SortByKey(possible)
-        for i = 1, 3 do
-            if possible[i] then
-                table.insert(selectedPrefixes, possible[i])
-            end
+        for i = 1, math.min(3, #possible) do
+            table.insert(selectedPrefixes, possible[i])
         end
     end
 
@@ -399,11 +404,12 @@ function zb.StartRTV(time)
     end
 
     local finalmaps = {}
+    local finalMapSet = {}
     for _, prefix in ipairs(selectedPrefixes) do
         local prefixMaps = getMapsByPrefix(prefix)
         local validMaps = {}
         for _, m in ipairs(prefixMaps) do
-            if not table.HasValue(PlayedMaps, m) and not IsMapBlacklisted(m) then
+            if not table.HasValue(PlayedMaps, m) and not IsMapBlacklisted(m) and not finalMapSet[m] then
                 table.insert(validMaps, m)
             end
         end
@@ -428,7 +434,9 @@ function zb.StartRTV(time)
             end
 
             if selectedIndex then
-                table.insert(finalmaps, validMaps[selectedIndex])
+                local selectedMap = validMaps[selectedIndex]
+                table.insert(finalmaps, selectedMap)
+                finalMapSet[selectedMap] = true
                 table.remove(validMaps, selectedIndex)
             end
         end
@@ -439,7 +447,7 @@ function zb.StartRTV(time)
         local fallbackMaps = getMapsByPrefix(fallbackPrefix)
         local filteredFallback = {}
         for _, m in ipairs(fallbackMaps) do
-            if not table.HasValue(PlayedMaps, m) and not IsMapBlacklisted(m) then
+            if not table.HasValue(PlayedMaps, m) and not IsMapBlacklisted(m) and not finalMapSet[m] then
                 table.insert(filteredFallback, m)
             end
         end
@@ -469,24 +477,45 @@ function zb.StartRTV(time)
             end
 
             if selectedIndex then
-                table.insert(finalmaps, filteredFallback[selectedIndex])
+                local selectedMap = filteredFallback[selectedIndex]
+                table.insert(finalmaps, selectedMap)
+                finalMapSet[selectedMap] = true
                 table.remove(filteredFallback, selectedIndex)
             end
         end
     end
 
-    if #finalmaps == 0 then
-        if #mappull > 0 then
-            local rndMap = mappull[math.random(#mappull)]
-            table.insert(finalmaps, rndMap)
+    if #finalmaps < rtvDirectMapCount then
+        local backupMaps = {}
+        for _, mapName in ipairs(mappull) do
+            if not IsMapBlacklisted(mapName) and not finalMapSet[mapName] then
+                table.insert(backupMaps, mapName)
+            end
         end
+        ShuffleArray(backupMaps)
+        for _, mapName in ipairs(backupMaps) do
+            table.insert(finalmaps, mapName)
+            finalMapSet[mapName] = true
+            if #finalmaps >= rtvDirectMapCount then
+                break
+            end
+        end
+    end
+
+    if #finalmaps == 0 and #mappull > 0 then
+        local rndMap = mappull[math.random(#mappull)]
+        table.insert(finalmaps, rndMap)
+        finalMapSet[rndMap] = true
     end
 
     if #finalmaps > rtvDirectMapCount then
         while #finalmaps > rtvDirectMapCount do
-            table.remove(finalmaps, #finalmaps)
+            local removed = table.remove(finalmaps, #finalmaps)
+            finalMapSet[removed] = nil
         end
     end
+
+    ShuffleArray(finalmaps)
 
     table.insert(finalmaps, "random")
     currentRTVMaps = table.Copy(finalmaps)

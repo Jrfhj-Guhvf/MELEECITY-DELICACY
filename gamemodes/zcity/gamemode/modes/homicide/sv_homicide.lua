@@ -680,7 +680,6 @@ function MODE:Intermission()
 	end
 
 	MODE.TraitorExpectedAmt = traitors_needed
-	local main_traitor = nil
 	local traitors = {}
 
 	-- local players = {}
@@ -700,11 +699,6 @@ function MODE:Intermission()
 			ply.isTraitor = true
 			traitors_needed = traitors_needed - 1
 			traitors[#traitors + 1] = ply
-
-			if not main_traitor then
-				main_traitor = ply
-				ply.MainTraitor = true
-			end
 		end
 	end
 
@@ -717,11 +711,6 @@ function MODE:Intermission()
 			ply.isTraitor = true
 			traitors_needed = traitors_needed - 1
 			traitors[#traitors + 1] = ply
-			
-			if not main_traitor then
-				main_traitor = ply
-				ply.MainTraitor = true
-			end
 		end
 	end
 
@@ -733,12 +722,18 @@ function MODE:Intermission()
 				ply.isTraitor = true
 				traitors_needed = traitors_needed - 1
 				traitors[#traitors + 1] = ply
-
-				if not main_traitor then
-					main_traitor = ply
-					ply.MainTraitor = true
-				end
 			end
+		end
+	end
+
+	if #traitors > 0 then
+		for _, traitor in ipairs(traitors) do
+			traitor.MainTraitor = false
+		end
+
+		local main_traitor = table.Random(traitors)
+		if IsValid(main_traitor) then
+			main_traitor.MainTraitor = true
 		end
 	end
 

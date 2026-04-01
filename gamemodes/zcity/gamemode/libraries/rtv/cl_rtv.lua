@@ -269,9 +269,13 @@ function zb.RTVMenu()
     end
 
     local displayMaps = {}
+    local displaySet = {}
     for _, mapName in ipairs(maps) do
         if #displayMaps >= maxChoices then break end
-        table.insert(displayMaps, mapName)
+        if not displaySet[mapName] then
+            table.insert(displayMaps, mapName)
+            displaySet[mapName] = true
+        end
     end
 
     local mapAreaWidth = mapsHost:GetWide() - 24 - mapsPanel:GetVBar():GetWide()
