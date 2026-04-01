@@ -38,6 +38,35 @@ local function DrawScaledText(text, font, x, y, color, alignX, alignY, scale)
 	cam.PopModelMatrix()
 end
 
+local function WrapNamesForWidth(names, maxWidth, font)
+	if not istable(names) or #names == 0 then
+		return {"none"}
+	end
+
+	surface.SetFont(font)
+	local lines = {}
+	local current = ""
+
+	for i = 1, #names do
+		local piece = current == "" and names[i] or ", " .. names[i]
+		local candidate = current .. piece
+		local width = surface.GetTextSize(candidate)
+
+		if current ~= "" and width > maxWidth then
+			lines[#lines + 1] = current
+			current = names[i]
+		else
+			current = candidate
+		end
+	end
+
+	if current ~= "" then
+		lines[#lines + 1] = current
+	end
+
+	return lines
+end
+
 local function PlayCountdownTick()
 	local ply = LocalPlayer()
 	if not IsValid(ply) then return end
@@ -305,14 +334,28 @@ function MODE:HUDPaint()
 		draw.SimpleText(reportData.title or "Incident Report", "ZC_MM_Title", sw * 0.5, sh * 0.25, Color(200, 50, 50, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 		draw.SimpleText(reportData.winner or "Outcome: unknown", "ZCity_Veteran", sw * 0.5, sh * 0.34, Color(255, 255, 255, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 
-		local deceased = reportData.deceased or {}
-		local deceasedText = #deceased > 0 and table.concat(deceased, ", ") or "none"
-		draw.SimpleText("Deceased: " .. deceasedText, "ZCity_Veteran", sw * 0.5, sh * 0.42, Color(220, 220, 220, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+		local reportFont = "ZCity_Veteran"
+		local maxLineWidth = sw * 0.92
+		local deceasedLines = WrapNamesForWidth(reportData.deceased or {}, maxLineWidth, reportFont)
+		local survivorsLines = WrapNamesForWidth(reportData.survivors or {}, maxLineWidth, reportFont)
+		surface.SetFont(reportFont)
+		local _, lineHeight = surface.GetTextSize("W")
+		lineHeight = math.max(lineHeight, 18)
 
-		local survivors = reportData.survivors or {}
-		local survivorsText = #survivors > 0 and table.concat(survivors, ", ") or "none"
-		draw.SimpleText("Survivors: " .. survivorsText, "ZCity_Veteran", sw * 0.5, sh * 0.48, Color(180, 180, 180, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+		local y = sh * 0.42
+		draw.SimpleText("Deceased:", reportFont, sw * 0.5, y, Color(220, 220, 220, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+		for i = 1, #deceasedLines do
+			y = y + lineHeight
+			draw.SimpleText(deceasedLines[i], reportFont, sw * 0.5, y, Color(220, 220, 220, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+		end
 
-		draw.SimpleText("Silence lingers where the shots once spoke.", "ZCity_Veteran", sw * 0.5, sh * 0.58, Color(190, 190, 190, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+		y = y + lineHeight * 0.65
+		draw.SimpleText("Survivors:", reportFont, sw * 0.5, y, Color(180, 180, 180, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+		for i = 1, #survivorsLines do
+			y = y + lineHeight
+			draw.SimpleText(survivorsLines[i], reportFont, sw * 0.5, y, Color(180, 180, 180, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+		end
+
+		draw.SimpleText("Silence lingers where the shots once spoke.", reportFont, sw * 0.5, math.min(y + lineHeight * 1.25, sh * 0.9), Color(190, 190, 190, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 	end
 end
