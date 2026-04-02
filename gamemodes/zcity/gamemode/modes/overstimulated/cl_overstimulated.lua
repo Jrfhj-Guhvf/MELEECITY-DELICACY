@@ -22,6 +22,10 @@ local roles = {
 	}
 }
 
+local reportData = nil
+local reportUntil = 0
+local reportStart = 0
+
 local function DrawScaledText(text, font, x, y, color, alignX, alignY, scale)
 	if scale == 1 then
 		draw.SimpleText(text, font, x, y, color, alignX, alignY)
@@ -70,15 +74,40 @@ end
 local function PlayCountdownTick()
 	local ply = LocalPlayer()
 	if not IsValid(ply) then return end
-	ply:EmitSound("press4.mp3", 55, 120, 0.2, CHAN_AUTO)
+	ply:EmitSound("press4.mp3", 65, 120, 0.2, CHAN_AUTO)
 end
 
 function MODE:RenderScreenspaceEffects()
 	zb.RemoveFade()
-	if zb.ROUND_START + 7.5 < CurTime() then return end
-	local fade = math.Clamp(zb.ROUND_START + 7.5 - CurTime(), 0, 1)
-	surface.SetDrawColor(0, 0, 0, 255 * fade)
-	surface.DrawRect(-1, -1, ScrW() + 1, ScrH() + 1)
+	local now = CurTime()
+
+	-- Round start fade
+	if zb.ROUND_START + 7.5 > now then
+		local fade = math.Clamp(zb.ROUND_START + 7.5 - now, 0, 1)
+		surface.SetDrawColor(0, 0, 0, 255 * fade)
+		surface.DrawRect(-1, -1, ScrW() + 1, ScrH() + 1)
+	end
+
+	-- Round report desaturation
+	if reportData and reportUntil > now then
+		local fadeIn = math.Clamp((now - reportStart) / 0.8, 0, 1)
+		local fadeOut = math.Clamp((reportUntil - now) / 1.5, 0, 1)
+		local fade = math.min(fadeIn, fadeOut)
+		local saturation = 1 - fade
+
+		DrawColorModify({
+			["$pp_colour_addr"] = 0,
+			["$pp_colour_addg"] = 0,
+			["$pp_colour_addb"] = 0,
+			["$pp_colour_brightness"] = 0,
+			["$pp_colour_contrast"] = 1,
+			["$pp_colour_colour"] = saturation,
+			["$pp_colour_mulr"] = 0,
+			["$pp_colour_mulg"] = 0,
+			["$pp_colour_mulb"] = 0
+		})
+	
+	end
 end
 
 local posadd = 0
@@ -94,9 +123,6 @@ local lastStandCountdownStarted = false
 local lastStandCountdownStartTime = 0
 local lastStandLastSecond = -1
 local lastStandPulseScale = 1
-local reportData = nil
-local reportUntil = 0
-local reportStart = 0
 local roundCueStation = nil
 local lastStandStation = nil
 
@@ -116,6 +142,9 @@ net.Receive("overstimulated_round_report", function()
 	reportData = net.ReadTable()
 	reportStart = CurTime()
 	reportUntil = CurTime() + 8
+	timer.Simple(0.1, function()
+	LocalPlayer():EmitSound("overstim/roundend"..math.random(1,2)..".wav", 75, 100, 0.8)
+	end)
 end)
 
 net.Receive("overstimulated_audio_cue", function()
@@ -209,6 +238,7 @@ function MODE:HUDPaint()
 		copsCountdownStartTime = now
 		copsLastSecond = -1
 		copsPulseScale = 1.15
+		ply:EmitSound("overstim/911.mp3", 65, 100, 0.2, CHAN_AUTO)
 	end
 
 	if not showCopsCountdown then
@@ -234,7 +264,7 @@ function MODE:HUDPaint()
 		local shakeY = math.Rand(-shakeAmp, shakeAmp)
 		local x = sw * 0.5 + shakeX
 		local y = sh * 0.07 + shakeY
-		local color = Color(255, 80, 80, alpha)
+		local color = Color(255, 80, 155, alpha)
 		local shadow = Color(0, 0, 0, alpha)
 		local text = tostring(sec) .. "s"
 
@@ -331,31 +361,42 @@ function MODE:HUDPaint()
 		surface.SetDrawColor(0, 0, 0, 180 * fade)
 		surface.DrawRect(0, 0, sw, sh)
 
-		draw.SimpleText(reportData.title or "Incident Report", "ZC_MM_Title", sw * 0.5, sh * 0.25, Color(200, 50, 50, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-		draw.SimpleText(reportData.winner or "Outcome: unknown", "ZCity_Veteran", sw * 0.5, sh * 0.34, Color(255, 255, 255, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
-
+		draw.SimpleText(reportData.title or "BREAKING! SMILEYZ GROUP ATTACK ON NOWHERE?", "ZCity_Veteran", sw * 0.5, sh * 0.25, Color(205, 55, 55, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+		draw.SimpleText(reportData.winner or "OUTCOME: Reporters are still gathering info", "ZCity_Veteran", sw * 0.5, sh * 0.34, Color(255, 255, 255, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+		
+		local solesurvivor = #reportData.survivors == 1
+		
 		local reportFont = "ZCity_Veteran"
 		local maxLineWidth = sw * 0.92
 		local deceasedLines = WrapNamesForWidth(reportData.deceased or {}, maxLineWidth, reportFont)
+		local shooterLines = WrapNamesForWidth(reportData.shooters or {}, maxLineWidth, reportFont)
 		local survivorsLines = WrapNamesForWidth(reportData.survivors or {}, maxLineWidth, reportFont)
 		surface.SetFont(reportFont)
 		local _, lineHeight = surface.GetTextSize("W")
 		lineHeight = math.max(lineHeight, 18)
 
-		local y = sh * 0.42
+		local y = sh * 0.40
 		draw.SimpleText("Deceased:", reportFont, sw * 0.5, y, Color(220, 220, 220, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 		for i = 1, #deceasedLines do
 			y = y + lineHeight
 			draw.SimpleText(deceasedLines[i], reportFont, sw * 0.5, y, Color(220, 220, 220, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 		end
 
-		y = y + lineHeight * 0.65
-		draw.SimpleText("Survivors:", reportFont, sw * 0.5, y, Color(180, 180, 180, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+		 y = y + lineHeight * 0.85
+		draw.SimpleText((#reportData.shooters == 1 and "Shooter:" or "Shooters:"), reportFont, sw * 0.5, y, Color(180, 20, 20, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+		for i = 1, #shooterLines do
+			y = y + lineHeight
+			draw.SimpleText(shooterLines[i], reportFont, sw * 0.5, y, Color(180, 20, 20, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+		end
+
+		y = y + lineHeight * 1.10
+		draw.SimpleText((solesurvivor and "Survivor:" or "Survivors:"), reportFont, sw * 0.5, y, Color(180, 180, 180, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 		for i = 1, #survivorsLines do
 			y = y + lineHeight
 			draw.SimpleText(survivorsLines[i], reportFont, sw * 0.5, y, Color(180, 180, 180, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 		end
 
-		draw.SimpleText("Silence lingers where the shots once spoke.", reportFont, sw * 0.5, math.min(y + lineHeight * 1.25, sh * 0.9), Color(190, 190, 190, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
+
+		draw.SimpleText((#reportData.survivors <= 0 and "Silence lingers where the shots once spoke." or "The survivor"..(solesurvivor and " was" or "s were").." relatively okay, but won't forget about the incident."), reportFont, sw * 0.5, math.min(y + lineHeight * 1.35, sh * 0.9), Color(190, 190, 190, 255 * fade), TEXT_ALIGN_CENTER, TEXT_ALIGN_CENTER)
 	end
 end

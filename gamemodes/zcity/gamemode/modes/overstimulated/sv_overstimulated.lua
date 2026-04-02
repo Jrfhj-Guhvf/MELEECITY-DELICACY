@@ -70,11 +70,11 @@ end
 function MODE:GetShooterCount(playerCount)
 	if playerCount >= 15 then
 		return 3
-	end
-	if playerCount >= 10 then
+	elseif playerCount >= 10 then
 		return 2
+	else
+		return 1
 	end
-	return 1
 end
 
 function MODE:GetCopCount(playerCount, shooterCount)
@@ -209,30 +209,42 @@ end
 function MODE:BuildRoundReport(winner)
 	local deceased = {}
 	local survivors = {}
-
+	local shooters = {}
+	
+	local mapname = game.GetMap()
+	local prefix = string.find(mapname, "_")
+	if prefix then
+		mapname = string.sub(mapname, prefix + 1)
+	end
+	
 	for _, ply in player.Iterator() do
 		if not IsValid(ply) or ply:Team() == TEAM_SPECTATOR then continue end
-
-		if ply:Alive() then
-			table.insert(survivors, ply:Name())
+		if ply:Alive() and ply:Team() ~= 2 then
+			table.insert(survivors, ply:GetNWString("PlayerName"))
+		elseif ply:Team() ~= 2 then
+			table.insert(deceased, ply:GetNWString("PlayerName"))
 		else
-			table.insert(deceased, ply:Name())
+			table.insert(shooters, ply:GetNWString("PlayerName").."("..(ply:Alive() and "Alive" or "Deceased")..")")
 		end
 	end
-
-	local winnerText = "No one"
+	
+	local oneleft = #survivors == 1
+	local anydead = #deceased > 0
+	
+	local winnerText = "Reporters are still gathering info"
 	if winner == 0 then
-		winnerText = "SWAT"
+		winnerText = "SWAT neutralized the maniac"..(#shooters > 1 and "s" or "")
 	elseif winner == 1 then
-		winnerText = "Victims"
+		winnerText = (oneleft and "One" or anydead and "Some" or "All").." victim"..(oneleft and "" or "s").." survived the attack"
 	elseif winner == 2 then
-		winnerText = "Overstimulated"
+		winnerText = "the Group left no survivors"
 	end
 
 	return {
-		title = "Incident Report",
-		winner = "Outcome: " .. winnerText,
+		title = "BREAKING! SMILEYZ GROUP ATTACK ON "..string.upper(string.NiceName(mapname)),
+		winner = "OUTCOME: " .. winnerText,
 		deceased = deceased,
+		shooters = shooters,
 		survivors = survivors
 	}
 end
@@ -304,7 +316,7 @@ function MODE:GiveVictimLoadout(ply)
 	ply.noSound = true
 
 	ply:SetPlayerClass("default")
-	zb.GiveRole(ply, "victim", Color(255,255,255))
+	zb.GiveRole(ply, "Victim", Color(255,255,255))
 
 	ply:StripWeapons()
 	ply:Give("weapon_hands_sh")
@@ -316,16 +328,22 @@ end
 
 local function GiveWeaponWithReserve(ply, class, reserveMags)
 	local wep = ply:Give(class)
-	if not IsValid(wep) or not wep.GetMaxClip1 or not wep.GetPrimaryAmmoType then
+	if not IsValid(wep) or not wep.GetMaxClip1 or not wep.count or not wep.GetPrimaryAmmoType then
 		return nil
 	end
-
+	
+	if wep.GetMaxClip1 and wep.GetPrimaryAmmoType then
 	local maxClip = wep:GetMaxClip1()
 	local ammoType = wep:GetPrimaryAmmoType()
 	if maxClip and maxClip > 0 and ammoType and ammoType >= 0 then
 		ply:GiveAmmo(maxClip * (reserveMags or 3), ammoType, true)
 	end
-
+	end
+	
+	if wep.count then
+	wep.count = (reserveMags or 1)
+	end
+	
 	return wep
 end
 
@@ -350,7 +368,7 @@ function MODE:SpawnShooter(ply)
 	ply.noSound = true
 
 	ply:SetupTeam(2)
-	ply:SetPlayerClass("default")
+	ply:SetPlayerClass("terrorist")
 
 	local shooterIndex = (self.ShooterIndex and self.ShooterIndex[ply]) or 1
 	local roleName = shooterRoleNames[shooterIndex] or shooterRoleNames[1]
@@ -433,7 +451,7 @@ function MODE:SpawnCop(ply)
 		ply:GiveAmmo(gun:GetMaxClip1() * 3, gun:GetPrimaryAmmoType(), true)
 	end
 
-	local sidearm = ply:Give("weapon_glock17")
+	local sidearm = math.random(1,3) > 1 and ply:Give("weapon_glock17") or ply:Give("weapon_hk_usp")
 	if IsValid(sidearm) and sidearm.GetMaxClip1 then
 		ply:GiveAmmo(sidearm:GetMaxClip1() * 3, sidearm:GetPrimaryAmmoType(), true)
 	end
@@ -520,12 +538,7 @@ function MODE:GiveEquipment()
 						util.BlastDamage(game.GetWorld(), game.GetWorld(), detPos, 600, 100000)
 
 						if IsValid(shooter) and shooter:Alive() then
-							shooter:SetHealth(1)
-							shooter:TakeDamage(100000, game.GetWorld(), game.GetWorld())
-						end
-
-						if IsValid(shooter) and shooter:Alive() then
-							shooter:Kill()
+							shooter:Kill()	--just kill them already!
 						end
 					end)
 				end
