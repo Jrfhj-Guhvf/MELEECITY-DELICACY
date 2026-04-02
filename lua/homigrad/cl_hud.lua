@@ -835,6 +835,7 @@ local observe_bone_sets = {
 			offset = 12,
 			fracture_keys = {"larm"},
 			dis_key = "larmdislocation",
+			amp_key = "larmamputated",
 			hitgroups = {
 				[HITGROUP_LEFTARM] = true
 			}
@@ -846,6 +847,7 @@ local observe_bone_sets = {
 			offset = 12,
 			fracture_keys = {"rarm"},
 			dis_key = "rarmdislocation",
+			amp_key = "rarmamputated",
 			hitgroups = {
 				[HITGROUP_RIGHTARM] = true
 			}
@@ -872,6 +874,7 @@ local observe_bone_sets = {
 			side = -1,
 			fracture_keys = {"lleg"},
 			dis_key = "llegdislocation",
+			amp_key = "llegamputated",
 			hitgroups = {
 				[HITGROUP_LEFTLEG] = true
 			}
@@ -882,6 +885,7 @@ local observe_bone_sets = {
 			side = 1,
 			fracture_keys = {"rleg"},
 			dis_key = "rlegdislocation",
+			amp_key = "rlegamputated",
 			hitgroups = {
 				[HITGROUP_RIGHTLEG] = true
 			}
@@ -1036,14 +1040,16 @@ local function build_observe_text(entry, ent)
 	end
 	local fracture = has_fracture(org, entry.fracture_keys or {})
 	local dislocation = entry.dis_key and (org[entry.dis_key] or false) or false
+	local amputated = entry.amp_key and (org[entry.amp_key] or false) or false
 	local woundcount = count_wounds_for_groups(ent, wounds, entry.hitgroups or {})
 	local arterialcount = count_arterial_for_groups(ent, arterialwounds, entry.hitgroups or {})
-	if not fracture and not dislocation and woundcount <= 0 and arterialcount <= 0 then
+	if not fracture and not dislocation and not amputated and woundcount <= 0 and arterialcount <= 0 then
 		return entry.label .. ": All fine."
 	end
 	local parts = {}
 	if fracture then parts[#parts + 1] = "Fracture" end
 	if dislocation then parts[#parts + 1] = "Dislocated" end
+	if amputated then parts[#parts + 1] = "Amputated" end
 	local bleeding = get_bleeding_label(woundcount)
 	if bleeding then parts[#parts + 1] = bleeding end
 	if arterialcount > 0 then parts[#parts + 1] = "Arterial bleeding" end
