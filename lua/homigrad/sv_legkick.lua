@@ -23,11 +23,11 @@ function PLAYER:LegAttack()
     self:EmitSound("player/clothes_generic_foley_0" .. math.random(1,5) .. ".wav",65)
 
     local org = self.organism
-    org.stamina.subadd = org.stamina.subadd + (anim == "curbstomp_base" and 12 or 20)
+    org.stamina.subadd = org.stamina.subadd + (anim == "curbstomp_base" and 10 or 17)
     local speedmul = (2 - (org.stamina[1] / org.stamina.max))
     local speed = 1.5 * speedmul
     local animstopAdjust = 0.3 * speedmul
-    local dmg = anim == "curbstomp_base" and 22 or 10 * (2 - speedmul)
+    local dmg = anim == "curbstomp_base" and 24 or 10 * (2 - speedmul)
 
     if isMidAir then
         local vel = self:GetVelocity():Length()
@@ -38,7 +38,7 @@ function PLAYER:LegAttack()
     dmg = dmg * (self:IsBerserk() and org.berserk * 5 or 1)
     dmg = dmg * (org.legstrength or 1)
     if isMidAir then
-        dmg = math.min(dmg, 42)
+        dmg = math.min(dmg * 0.5, 21)
     end
     --print(dmg)
     --print(speedmul)
@@ -204,12 +204,12 @@ function PLAYER:LegAttack()
 					MaxPenLenGlobal = 1
                     
                     local horizSpeed = Vector(velocity.x, velocity.y, 0):Length()
-                    local forceMult = math.max(500, 700 - horizSpeed / 6)
+                    local forceMult = math.max(500, 700 - horizSpeed / 6) * (isMidAir and 0.9 or 1)
                     hg.AddForceRag(ent, tr.PhysicsBone or 0, normal * dmg * forceMult, 0.25)
                     ent:TakeDamageInfo(dmginfo)
                     
                     if IsValid(phys) then
-                        local forceOffsetMult = math.max(110, 150 - horizSpeed / 70)
+                        local forceOffsetMult = math.max(110, 150 - horizSpeed / 70) * (isMidAir and 0.9 or 1)
                         phys:ApplyForceOffset(normal * dmg * forceOffsetMult, tr.HitPos)
                     end
 
@@ -225,7 +225,7 @@ function PLAYER:LegAttack()
                         end
 
                         local horizSpeed = Vector(velocity.x, velocity.y, 0):Length()
-                        local knockback = math.max(10, 20 - horizSpeed / 70) 
+                        local knockback = math.max(10, 20 - horizSpeed / 70) * (isMidAir and 0.9 or 1)
                         ent:SetVelocity(normal * knockback)
                     end
                     if hgIsDoor(ent) and !ent:GetNoDraw() then
