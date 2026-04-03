@@ -57,7 +57,7 @@ local GasTankPushForce = {
 	["models/props_c17/canister02a.mdl"] = 125,
 	["models/props_junk/PropaneCanister001a.mdl"] = 120,
 	["models/props_c17/canister_propane01a.mdl"] = 135,
-	["models/props_junk/propane_tank001a.mdl"] = 145
+	["models/props_junk/propane_tank001a.mdl"] = 35
 }
 
 local GasTankSmokeSettings = {
@@ -660,6 +660,7 @@ hook.Add("EntityTakeDamage", "ExplosiveDamage", function( target, dmginfo )
 					tankData.IsActive = true
 					tankData.NextBurnTime = 0
 					tankData.ExplodeAt = CurTime() + math.Rand(3, 5)
+					tankData.NextLeakBroadcastAt = 0
 					if not tankData.BaseGasAmount then
 						tankData.BaseGasAmount = target.Volume or 75
 						tankData.GasAmount = tankData.BaseGasAmount
@@ -672,7 +673,7 @@ hook.Add("EntityTakeDamage", "ExplosiveDamage", function( target, dmginfo )
 
 				local localHole, localNormal = ResolveGasTankLeak(target, dmginfo)
 
-				local mode = tankData.LeakMode or (RNG(100) <= 30 and "fire" or "smoke")
+				local mode = tankData.LeakMode or (RNG(100) <= 45 and "fire" or "smoke")
 				tankData.LeakMode = mode
 				if #tankData.Leaks >= 4 then
 					table.remove(tankData.Leaks, 1)
@@ -684,12 +685,15 @@ hook.Add("EntityTakeDamage", "ExplosiveDamage", function( target, dmginfo )
 					Time = CurTime()
 				}
 
-				net.Start("hg_gastank_leak")
-				net.WriteEntity(target)
-				net.WriteVector(localHole)
-				net.WriteVector(localNormal)
-				net.WriteString(mode)
-				net.Broadcast()
+				if CurTime() >= (tankData.NextLeakBroadcastAt or 0) then
+					tankData.NextLeakBroadcastAt = CurTime() + 0.06
+					net.Start("hg_gastank_leak")
+					net.WriteEntity(target)
+					net.WriteVector(localHole)
+					net.WriteVector(localNormal)
+					net.WriteString(mode)
+					net.Broadcast()
+				end
 
 				local phys = target:GetPhysicsObject()
 				if IsValid(phys) then

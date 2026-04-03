@@ -40,6 +40,8 @@ end
 local effectPerMSec = 0
 local effectCDCurTime = 0
 local GasTankEffects = {}
+local GasTankLeakReceiveCooldown = 0.05
+local GasTankMaxVisualLeaks = 1
 PrecacheParticleSystem("fire_jet_01")
 net.Receive("hg_booom",function()
     local pos = net.ReadVector()
@@ -66,9 +68,11 @@ net.Receive("hg_gastank_leak", function()
     local idx = ent:EntIndex()
     local data = GasTankEffects[idx]
     if not data then
-        data = { Entity = ent, Leaks = {} }
+        data = { Entity = ent, Leaks = {}, NextReceiveAt = 0 }
         GasTankEffects[idx] = data
     end
+    if CurTime() < (data.NextReceiveAt or 0) then return end
+    data.NextReceiveAt = CurTime() + GasTankLeakReceiveCooldown
     if mode == "fire" and not data.FireSound then
         data.FireSound = CreateSound(ent, "tankfire.mp3")
         if data.FireSound then
@@ -87,8 +91,17 @@ net.Receive("hg_gastank_leak", function()
 
     local holePosWorld = ent:LocalToWorld(localHolePos)
     local normalWorld = (ent:LocalToWorld(localHolePos + localNormal) - holePosWorld):GetNormalized()
+    local leakCount = #data.Leaks
+    if leakCount >= GasTankMaxVisualLeaks then
+        local oldLeak = data.Leaks[1]
+        if oldLeak and oldLeak.Dummy and IsValid(oldLeak.Dummy) then
+            oldLeak.Dummy:Remove()
+        end
+        table.remove(data.Leaks, 1)
+    end
 
     local dummy = ClientsideModel("models/props_junk/PopCan01a.mdl", RENDERGROUP_NONE)
+    if not IsValid(dummy) then return end
     dummy:SetPos(holePosWorld)
     dummy:SetAngles(normalWorld:Angle())
     dummy:SetParent(ent)
