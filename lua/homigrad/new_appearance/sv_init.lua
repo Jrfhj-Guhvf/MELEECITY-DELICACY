@@ -106,6 +106,7 @@ local function ForceApplyAppearance(ply, tbl, noModelChange)
 
     ply:SetNetVar("Accessories", tbl.AAttachments)
 
+	ply:SetNetVar("CurAppearance", tbl)
     ply.CurAppearance = {}
     table.CopyFromTo(tbl, ply.CurAppearance)
 end
@@ -127,29 +128,40 @@ function ApplyAppearance(Client,tAppearance,bRandom,bResponeIsValid,bUseCahsed)
         WearAppearance(Client,tAppearance)
         return
     end
+
     if bUseCahsed then
-        tAppearance = APmodule.GetRandomAppearance()
-        tAppearance = Client.CachedAppearance or tAppearance
-        --Client:ChatPrint(tAppearance.AModel)
-        if !APmodule.AppearanceValidater(tAppearance) then tAppearance = APmodule.GetRandomAppearance() end
-        net.Start("OnlyGet_Appearance")
-        net.Send(Client)
-        WearAppearance(Client,tAppearance)
-        return
+        if Client.CachedAppearance and APmodule.AppearanceValidater(Client.CachedAppearance) then
+            WearAppearance(Client, Client.CachedAppearance)
+            net.Start("OnlyGet_Appearance")
+            net.Send(Client)
+            return
+        end
+        -- If no cache or invalid, fall back to requesting it from client properly
+        bResponeIsValid = false
+        bUseCahsed = false
     end
 
     if !bResponeIsValid then
-        tWaitResponse[Client] = CurTime() + 3
+        tWaitResponse[Client] = CurTime() + 5 -- Increased timeout slightly
         net.Start("Get_Appearance")
         net.Send(Client)
     return end
+
     if !tWaitResponse[Client] then return end
     if tWaitResponse[Client] < CurTime() then
         ApplyAppearance(Client,nil,true)
     return end
 
-    if !tAppearance then ApplyAppearance(Client,nil,true) return end
-    if !APmodule.AppearanceValidater(tAppearance) then ApplyAppearance(Client,nil,true) return end
+    if !tAppearance or !APmodule.AppearanceValidater(tAppearance) then
+        ApplyAppearance(Client,nil,true)
+        return
+    end
+
+    -- Sanitize name if invalid, but keep the rest of the appearance
+    if hg.Appearance.IsInvalidName(tAppearance.AName) then
+        local tMdl = APmodule.PlayerModels[1][tAppearance.AModel] or APmodule.PlayerModels[2][tAppearance.AModel] or tAppearance.AModel
+        tAppearance.AName = APmodule.GenerateRandomName(tMdl.sex and 2 or 1)
+    end
 
     WearAppearance(Client,tAppearance)
 end

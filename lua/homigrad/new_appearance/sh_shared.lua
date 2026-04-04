@@ -419,14 +419,15 @@ hg.Appearance.ValidateFunctions = {
 }
 
 local function AppearanceValidater(tblAppearance)
+    if not tblAppearance then return false end
     local VaildFuncs = hg.Appearance.ValidateFunctions
     local bValidAModel = VaildFuncs.AModel(tblAppearance.AModel)
     local bValidAClothes = VaildFuncs.AClothes(tblAppearance.AClothes)
-    local bValidAName = VaildFuncs.AName(tblAppearance.AName)
+    -- We don't strictly validate the name here anymore, it's sanitized during application
     local bValidAColor = VaildFuncs.AColor(tblAppearance.AColor)
     local bValidAAttachments = VaildFuncs.AAttachments(tblAppearance.AAttachments)
-    --print(bValidAModel,bValidAClothes,bValidAName,bValidAColor,bValidAAttachments)
-    if bValidAModel and bValidAClothes and bValidAName and bValidAColor and bValidAAttachments then return true end
+    
+    if bValidAModel and bValidAClothes and bValidAColor and bValidAAttachments then return true end
 
     return false
 end
