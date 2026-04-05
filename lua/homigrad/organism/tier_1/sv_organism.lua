@@ -351,7 +351,12 @@ hook.Add("EntityEmitSound", "DespairExplosionNearby", function(data)
 
 	local pos = data.Pos
 	if not pos or pos == vector_origin then
-		local ent = Entity(data.Entity or -1)
+		local ent = data.Entity
+		if isnumber(ent) then
+			ent = Entity(ent)
+		elseif not IsEntity(ent) then
+			ent = nil
+		end
 		if not IsValid(ent) then return end
 		pos = ent:GetPos()
 	end

@@ -1317,20 +1317,48 @@ hook.Add("PlayerDeath","I_Feel_Death",function(ply)
 	end
 end)
 
+local glassShardSpawnData = setmetatable({}, {__mode = "k"})
+
 hook.Add("PostEntityTakeDamage", "GlassShards", function(ent, dmginfo)
-	if IsValid(ent) and math.random(4) == 2 then
-		if ent:GetClass() == "func_breakable_surf" or (ent:GetClass() == "func_breakable" and ent:GetMaterialType() == MAT_GLASS) then
-			local glass = ents.Create("weapon_hg_glassshard")
-			local inf = dmginfo:GetInflictor()
-			glass:SetPos(IsValid(inf) and inf:GetPos() or dmginfo:GetAttacker():GetPos())
-			glass:SetAngles(AngleRand(-180, 180))
-			glass:Spawn()
-			glass.IsSpawned = true
-			glass.init = true
-			--Player(2):SetPos(IsValid(inf) and inf:GetPos() or dmginfo:GetAttacker():GetPos())
-			--print(ent, glass) -- bro im spawned and etc.
-		end
+	if not IsValid(ent) then return end
+
+	local class = ent:GetClass()
+	local isGlass = class == "func_breakable_surf" or (class == "func_breakable" and ent:GetMaterialType() == MAT_GLASS)
+	if not isGlass then return end
+	if math.random(4) ~= 2 then return end
+
+	local data = glassShardSpawnData[ent]
+	local curTime = CurTime()
+
+	if data then
+		if curTime < data.nextTime then return end
+		if data.count >= 3 then return end
+	else
+		data = {nextTime = 0, count = 0}
+		glassShardSpawnData[ent] = data
 	end
+
+	local inf = dmginfo:GetInflictor()
+	local attacker = dmginfo:GetAttacker()
+	local sourcePos
+
+	if IsValid(inf) then
+		sourcePos = inf:GetPos()
+	elseif IsValid(attacker) then
+		sourcePos = attacker:GetPos()
+	else
+		sourcePos = ent:GetPos()
+	end
+
+	local glass = ents.Create("weapon_hg_glassshard")
+	glass:SetPos(sourcePos)
+	glass:SetAngles(AngleRand(-180, 180))
+	glass:Spawn()
+	glass.IsSpawned = true
+	glass.init = true
+
+	data.count = data.count + 1
+	data.nextTime = curTime + 0.35
 end)
 
 local entMeta = FindMetaTable( "Entity" )

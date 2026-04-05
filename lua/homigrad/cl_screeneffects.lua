@@ -350,6 +350,51 @@ local despairSound
 local despairSoundVol = 0
 local despairSoundLoading = false
 hook.Add("Post Post Processing", "ItHurts", function()
+	if not IsValid(lply) then return end
+	if IsValid(lply:GetNWEntity("spect")) then
+		stopthings()
+		if IsValid(despairSound) then
+			despairSound:Stop()
+			despairSound = nil
+		end
+		despairSoundVol = 0
+		despairLerp = 0
+		despairVisualLerp = 0
+		despairTextLerp = 0
+		tab["$pp_colour_brightness"] = 0
+		tab["$pp_colour_contrast"] = 1
+		tab["$pp_colour_colour"] = 1
+		return
+	end
+	if not lply:Alive() then
+		stopthings()
+	end
+	if not lply:Alive() then
+		stopthings()
+		if IsValid(despairSound) then
+			despairSound:Stop()
+			despairSound = nil
+		end
+		despairSoundVol = 0
+		despairLerp = 0
+		despairVisualLerp = 0
+		despairTextLerp = 0
+		tab["$pp_colour_brightness"] = 0
+		tab["$pp_colour_contrast"] = 1
+		tab["$pp_colour_colour"] = 1
+		return
+	end
+
+	if gui.IsGameUIVisible() or gui.IsConsoleVisible() or vgui.CursorVisible() then
+		stopthings()
+		if IsValid(despairSound) then
+			despairSound:Stop()
+			despairSound = nil
+		end
+		despairSoundVol = 0
+		return
+	end
+
 	local spect = IsValid(lply:GetNWEntity("spect")) and lply:GetNWEntity("spect")
 	
 	if IsValid(PainStation) then
@@ -778,6 +823,10 @@ hook.Add("Post Post Processing", "ItHurts", function()
 		tab["$pp_colour_mulg"] = 0
 		tab["$pp_colour_mulb"] = 0
 		DrawColorModify(tab)
+	else
+		tab["$pp_colour_brightness"] = 0
+		tab["$pp_colour_contrast"] = 1
+		tab["$pp_colour_colour"] = 1
 	end
 
 	if despair >= 0.35 then
@@ -838,11 +887,16 @@ end)
 hook.Add("DrawOverlay", "despair_text", function()
 	local ply = IsValid(lply) and lply or LocalPlayer()
 	if not IsValid(ply) then return end
-	local spect = IsValid(ply:GetNWEntity("spect")) and ply:GetNWEntity("spect")
-	if !ply:Alive() and !IsValid(spect) then return end
-	if !ply:Alive() and viewmode != 1 then return end
+	if gui.IsGameUIVisible() or gui.IsConsoleVisible() or vgui.CursorVisible() or IsValid(vgui.GetKeyboardFocus()) then
+		despairTextLerp = LerpFT(0.15, despairTextLerp, 0)
+		return
+	end
+	if !ply:Alive() then
+		despairTextLerp = LerpFT(0.15, despairTextLerp, 0)
+		return
+	end
 
-	local org = ply:Alive() and (ply.new_organism or ply.organism) or (IsValid(spect) and (spect.new_organism or spect.organism))
+	local org = ply.new_organism or ply.organism
 	if not org then return end
 
 	local despair = math.Clamp(org.despair or 0, 0, 1)

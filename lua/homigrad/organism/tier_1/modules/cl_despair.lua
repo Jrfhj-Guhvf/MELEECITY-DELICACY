@@ -32,13 +32,9 @@ local despairSoundLoading = false
 local function get_target_organism()
 	local ply = IsValid(lply) and lply or LocalPlayer()
 	if not IsValid(ply) then return nil end
-	local spect = IsValid(ply:GetNWEntity("spect")) and ply:GetNWEntity("spect")
-	if not ply:Alive() and not IsValid(spect) then return nil end
-	if not ply:Alive() and viewmode != 1 then return nil end
-	if ply:Alive() then
-		return ply.new_organism or ply.organism
-	end
-	return spect.new_organism or spect.organism
+	if IsValid(ply:GetNWEntity("spect")) then return nil end
+	if not ply:Alive() then return nil end
+	return ply.new_organism or ply.organism
 end
 
 local function stop_despair_sound(force)
@@ -58,6 +54,28 @@ local function stop_despair_sound(force)
 end
 
 hook.Add("Post Post Processing", "hg_despair_effect", function()
+	local ply = IsValid(lply) and lply or LocalPlayer()
+	if not IsValid(ply) then return end
+	if IsValid(ply:GetNWEntity("spect")) then
+		despairLerp = 0
+		despairTextLerp = 0
+		stop_despair_sound(true)
+		return
+	end
+	if not ply:Alive() then
+		despairLerp = 0
+		despairTextLerp = 0
+		stop_despair_sound(true)
+		return
+	end
+
+	if gui.IsGameUIVisible() or gui.IsConsoleVisible() or vgui.CursorVisible() then
+		despairLerp = 0
+		despairTextLerp = 0
+		stop_despair_sound(true)
+		return
+	end
+
 	local org = get_target_organism()
 	local despair = (org and org.despair) and math.Clamp(org.despair, 0, 1) or 0
 
@@ -101,6 +119,11 @@ hook.Add("Post Post Processing", "hg_despair_effect", function()
 end)
 
 hook.Add("DrawOverlay", "hg_despair_text", function()
+	if gui.IsGameUIVisible() or gui.IsConsoleVisible() or vgui.CursorVisible() or IsValid(vgui.GetKeyboardFocus()) then
+		despairTextLerp = LerpFT(0.15, despairTextLerp, 0)
+		return
+	end
+
 	local org = get_target_organism()
 	local despair = (org and org.despair) and math.Clamp(org.despair, 0, 1) or 0
 	local target = math.Clamp((despair - 0.5) / 0.5, 0, 1)
