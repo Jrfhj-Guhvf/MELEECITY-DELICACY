@@ -927,10 +927,10 @@ local function q(self, u, v, w)
         x:SetDamage(u:Health())
     end
 
-    if u:IsPlayer() then
+    if u:IsPlayer() or u:IsRagdoll() then
 		hg.AddForceRag(u, 2, self:GetOwner():EyeAngles():Forward() * 42500, -0.2)
 		hg.AddForceRag(u, 0, self:GetOwner():EyeAngles():Forward() * 42500, -0.2)
-		hg.LightStunPlayer(u)
+		hg.LightStunPlayer(u, 5)
         u:TakeDamageInfo((x / 2))
     elseif u:IsNPC() or u:IsNextBot() then
         if u:GetShouldServerRagdoll() ~= true then u:SetShouldServerRagdoll(true) end
